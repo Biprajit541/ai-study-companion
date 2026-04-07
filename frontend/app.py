@@ -14,9 +14,6 @@ def call_api(endpoint, payload):
     try:
         res = requests.post(f"{API_URL}{endpoint}", json=payload, timeout=30)
 
-        # 🔍 DEBUG: show raw response
-        st.write("Raw response:", res.text)
-
         if res.status_code == 200:
             try:
                 return res.json()
@@ -25,7 +22,9 @@ def call_api(endpoint, payload):
         else:
             return {"error": f"HTTP {res.status_code}", "details": res.text}
 
-    except Exception as e:
+    except requests.exceptions.Timeout:
+        return {"error": "Request timed out"}
+    except requests.exceptions.RequestException as e:
         return {"error": str(e)}
 
 
