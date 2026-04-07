@@ -9,8 +9,5 @@ class ChatRequest(BaseModel):
 
 @router.post("/chat")
 def chat(req: ChatRequest):
-    try:
-        answer = generate_response(req.question)
-        return {"response": answer}
-    except Exception as e:
-        return {"response": f"⚠️ Error: {str(e)}"}
+    answer = generate_response(req.question)
+    return {"response": answer}
