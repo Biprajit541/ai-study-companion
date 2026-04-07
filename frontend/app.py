@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-API_URL = "https://ai-study-companion-production-f09d.up.railway.app"
+API_URL = "https://ideal-ambition-production-a154.up.railway.app"
 
 st.title("🚀 AI Study Companion")
 
