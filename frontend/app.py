@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-API_URL = "http://ai-study-companion-production-33d6.up.railway.app"
+API_URL = "http://helpful-balance-production-f861.up.railway.app"
 
 st.set_page_config(page_title="AI Study Companion", layout="wide")
 
