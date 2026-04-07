@@ -3,8 +3,6 @@ import requests
 
 API_URL = "https://ai-study-companion-production-f09d.up.railway.app"
 
-st.set_page_config(page_title="AI Study Companion", layout="centered")
-
 st.title("🚀 AI Study Companion")
 
 menu = st.sidebar.selectbox(
@@ -16,44 +14,38 @@ def call_api(endpoint, payload):
     try:
         res = requests.post(f"{API_URL}{endpoint}", json=payload, timeout=30)
 
+        # 🔍 DEBUG: show raw response
+        st.write("Raw response:", res.text)
+
         if res.status_code == 200:
             try:
                 return res.json()
             except Exception:
-                return {"error": "Invalid JSON response", "raw": res.text}
+                return {"error": "Invalid JSON response"}
         else:
-            return {"error": f"HTTP {res.status_code}", "raw": res.text}
+            return {"error": f"HTTP {res.status_code}", "details": res.text}
 
-    except requests.exceptions.Timeout:
-        return {"error": "Request timed out. Try again."}
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         return {"error": str(e)}
 
 
-
-# Chat Tutor
-
+# ================= CHAT =================
 if menu == "Chat Tutor":
     st.header("🤖 Ask Anything")
 
     question = st.text_input("Enter your question")
 
     if st.button("Ask"):
-        if not question.strip():
-            st.warning("Please enter a question")
+        data = call_api("/chat", {"question": question})
+
+        if "response" in data:
+            st.success(data["response"])
         else:
-            with st.spinner("Thinking..."):
-                data = call_api("/chat", {"question": question})
-
-            if "response" in data:
-                st.success(data["response"])
-            else:
-                st.error("Something went wrong")
-                st.write(data)
+            st.error("Error from backend")
+            st.write(data)
 
 
-# Study Planner
-
+# ================= PLANNER =================
 elif menu == "Study Planner":
     st.header("📊 Generate Study Plan")
 
@@ -61,35 +53,26 @@ elif menu == "Study Planner":
     days = st.slider("Days", 1, 30, 7)
 
     if st.button("Generate"):
-        if not subject.strip():
-            st.warning("Please enter a subject")
+        data = call_api("/plan", {"subject": subject, "days": days})
+
+        if "plan" in data:
+            st.success(data["plan"])
         else:
-            with st.spinner("Generating plan..."):
-                data = call_api("/plan", {"subject": subject, "days": days})
-
-            if "plan" in data:
-                st.success(data["plan"])
-            else:
-                st.error("Something went wrong")
-                st.write(data)
+            st.error("Error from backend")
+            st.write(data)
 
 
-# Notes Summarizer
-
+# ================= SUMMARIZER =================
 elif menu == "Notes Summarizer":
     st.header("📝 Summarize Notes")
 
     content = st.text_area("Paste your notes")
 
     if st.button("Summarize"):
-        if not content.strip():
-            st.warning("Please enter some content")
-        else:
-            with st.spinner("Summarizing..."):
-                data = call_api("/summarize", {"content": content})
+        data = call_api("/summarize", {"content": content})
 
-            if "summary" in data:
-                st.success(data["summary"])
-            else:
-                st.error("Something went wrong")
-                st.write(data)
+        if "summary" in data:
+            st.success(data["summary"])
+        else:
+            st.error("Error from backend")
+            st.write(data)
