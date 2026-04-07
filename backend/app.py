@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from backend.routes import chat, planner, notes
+from routes import chat, planner, notes
 
 app = FastAPI()
 
