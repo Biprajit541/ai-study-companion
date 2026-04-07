@@ -8,7 +8,6 @@ class NotesRequest(BaseModel):
     content: str
 
 @router.post("/summarize")
-def summarize(req: NotesRequest):
-    prompt = f"Summarize this into bullet points:\n{req.content}"
-    summary = generate_response(prompt)
-    return {"summary": summary}
+def summarize_notes(req: NotesRequest):
+    prompt = f"Summarize the following notes:\n{req.content}"
+    return {"summary": generate_response(prompt)}
