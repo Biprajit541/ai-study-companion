@@ -64,24 +64,69 @@ st.sidebar.info("Built using FastAPI + Groq + Streamlit")
 if menu == "💬 Chat Tutor":
     st.title("💬 AI Chat Tutor")
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    # 🧠 Memory
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "system", "content": "You are an expert AI tutor."}
+        ]
 
-    user_input = st.text_input("Ask a question")
+    # 📄 Upload document
+    uploaded_file = st.file_uploader("📄 Upload notes (PDF/TXT)", type=["pdf", "txt"])
+
+    if uploaded_file:
+        with st.spinner("Uploading document..."):
+            requests.post(
+                f"{API_URL}/upload-doc",
+                files={"file": uploaded_file}
+            )
+        st.success("Document uploaded! Now ask questions.")
+
+    # ✍️ Input
+    user_input = st.text_input("Ask something...")
+
+    # 🔄 Trim memory
+    MAX_HISTORY = 6
+    def trim_messages(messages):
+        return [messages[0]] + messages[-MAX_HISTORY:]
 
     if st.button("Send"):
         if user_input:
+            st.session_state.messages.append(
+                {"role": "user", "content": user_input}
+            )
+
             with st.spinner("Thinking..."):
-                data = call_api("/chat", {"question": user_input})
+                data = call_api("/chat", {
+                    "messages": trim_messages(st.session_state.messages)
+                })
 
             response = data.get("response", "Error occurred")
 
-            st.session_state.chat_history.append((user_input, response))
+            st.session_state.messages.append(
+                {"role": "assistant", "content": response}
+            )
 
-    # Display chat
-    for user, bot in reversed(st.session_state.chat_history):
-        st.markdown(f"<div class='chat-user'>🧑 {user}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='chat-bot'>🤖 {bot}</div>", unsafe_allow_html=True)
+    # 💬 Display chat
+    for msg in st.session_state.messages[1:]:
+        if msg["role"] == "user":
+            st.markdown(f"<div class='chat-user'>🧑 {msg['content']}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-bot'>🤖 {msg['content']}</div>", unsafe_allow_html=True)
+
+    # 🧹 Controls
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🧹 Clear Chat"):
+            st.session_state.messages = [
+                {"role": "system", "content": "You are an expert AI tutor."}
+            ]
+
+    with col2:
+        if st.button("↩️ Undo Last"):
+            if len(st.session_state.messages) > 2:
+                st.session_state.messages.pop()
+                st.session_state.messages.pop()
 
 # ---------- PLANNER ----------
 elif menu == "📊 Study Planner":
