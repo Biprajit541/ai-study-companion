@@ -4,5 +4,4 @@ groq
 python-dotenv
 pydantic
 pypdf
-faiss-cpu
-sentence-transformers
+requests
