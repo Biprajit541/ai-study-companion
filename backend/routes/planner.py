@@ -11,4 +11,8 @@ class PlanRequest(BaseModel):
 @router.post("/plan")
 def create_plan(req: PlanRequest):
     prompt = f"Create a {req.days}-day study plan for {req.subject}."
-    return {"plan": generate_response(prompt)}
+
+response = generate_response([
+    {"role": "system", "content": "You are a helpful planner."},
+    {"role": "user", "content": prompt}
+])
