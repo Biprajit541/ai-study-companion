@@ -1,65 +1,67 @@
 from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
 from services.llm import generate_response
+from services.vector_store import add_documents, search
+from utils.text_splitter import split_text
 from pypdf import PdfReader
 
 router = APIRouter()
-
-# In-memory storage
-document_text = ""
 
 class ChatRequest(BaseModel):
     messages: list
 
 
-# 📄 Upload document
+# 📄 Upload + process document
 @router.post("/upload-doc")
 async def upload_doc(file: UploadFile = File(...)):
-    global document_text
-
     try:
         if file.filename.endswith(".pdf"):
             reader = PdfReader(file.file)
             text = ""
             for page in reader.pages:
                 text += page.extract_text() or ""
-            document_text = text
         else:
             content = await file.read()
-            document_text = content.decode("utf-8")
+            text = content.decode("utf-8")
 
-        return {"message": "Document uploaded successfully"}
+        chunks = split_text(text)
+        add_documents(chunks)
+
+        return {"message": "Document indexed successfully"}
 
     except Exception as e:
-        return {"message": f"Upload failed: {str(e)}"}
+        return {"message": f"Error: {str(e)}"}
 
 
-# 💬 Chat with memory + document
+# 💬 Chat with RAG
 @router.post("/chat")
 def chat(req: ChatRequest):
-    global document_text
-
     try:
         messages = req.messages
+        user_question = messages[-1]["content"]
 
-        # Inject document context
-        if document_text:
-            messages = [
-                {
-                    "role": "system",
-                    "content": f"""
+        # 🔍 Retrieve relevant chunks
+        relevant_chunks = search(user_question, k=5)
+
+        context = "\n\n".join(relevant_chunks)
+
+        messages = [
+            {
+                "role": "system",
+                "content": f"""
 You are an AI tutor.
 
-Use the uploaded document if relevant.
-If the answer is not in the document, use general knowledge.
+Use the context below to answer clearly.
+If the answer is not found, say you don’t know.
 
-Document:
-{document_text[:3000]}
+Context:
+{context}
 """
-                }
-            ] + messages[1:]
+            }
+        ] + messages[1:]
 
         answer = generate_response(messages)
+
         return {"response": answer}
 
     except Exception as e:
