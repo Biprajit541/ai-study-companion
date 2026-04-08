@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import re
 
 API_URL = "https://ai-study-backend-py3f.onrender.com"
 
@@ -34,6 +35,19 @@ body {
     color: white;
     margin-bottom: 10px;
 }
+.source-box {
+    background-color: #2a2f3a;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    font-weight: bold;
+    transition: 0.3s;
+    cursor: pointer;
+}
+.source-box:hover {
+    background-color: #3a4150;
+    transform: scale(1.05);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -49,6 +63,18 @@ def call_api(endpoint, payload):
 
     except Exception as e:
         return {"error": str(e)}
+
+# ---------- RESPONSE FORMAT ----------
+def format_response(response):
+    parts = response.split("📌 Source:")
+
+    answer = parts[0].strip()
+
+    sources = []
+    if len(parts) > 1:
+        sources = re.findall(r'Page \d+', parts[1])
+
+    return answer, sources
 
 # ---------- SIDEBAR ----------
 st.sidebar.title("🚀 AI Study Companion")
@@ -70,7 +96,7 @@ if menu == "💬 Chat Tutor":
             {"role": "system", "content": "You are an expert AI tutor."}
         ]
 
-    # 📄 Upload document (FIXED)
+    # 📄 Upload document
     uploaded_file = st.file_uploader("📄 Upload notes", type=["pdf", "txt"])
 
     if uploaded_file and "uploaded" not in st.session_state:
@@ -110,12 +136,31 @@ if menu == "💬 Chat Tutor":
                 {"role": "assistant", "content": response}
             )
 
-    # 💬 Display chat
+    # 💬 Display chat with citations
     for msg in st.session_state.messages[1:]:
         if msg["role"] == "user":
             st.markdown(f"<div class='chat-user'>🧑 {msg['content']}</div>", unsafe_allow_html=True)
+
         else:
-            st.markdown(f"<div class='chat-bot'>🤖 {msg['content']}</div>", unsafe_allow_html=True)
+            answer, sources = format_response(msg["content"])
+
+            # 🤖 Answer
+            st.markdown(f"<div class='chat-bot'>🤖 {answer}</div>", unsafe_allow_html=True)
+
+            # 📚 Sources
+            if sources:
+                st.markdown("#### 📚 Sources")
+
+                cols = st.columns(len(sources))
+
+                for i, src in enumerate(sources):
+                    with cols[i]:
+                        st.markdown(
+                            f"<div class='source-box'>{src}</div>",
+                            unsafe_allow_html=True
+                        )
+
+            st.caption("💡 Tip: Ask specific questions for better answers")
 
     # 🧹 Controls
     col1, col2 = st.columns(2)
@@ -132,7 +177,7 @@ if menu == "💬 Chat Tutor":
             if len(st.session_state.messages) > 2:
                 st.session_state.messages.pop()
                 st.session_state.messages.pop()
-                
+
 # ---------- PLANNER ----------
 elif menu == "📊 Study Planner":
     st.title("📊 Smart Study Planner")
