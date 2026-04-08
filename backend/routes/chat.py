@@ -5,63 +5,120 @@ from pypdf import PdfReader
 
 router = APIRouter()
 
-# 🧠 Store document in memory
-document_text = ""
+# 🧠 Store chunks with page info
+document_chunks = []
 
 class ChatRequest(BaseModel):
     messages: list
 
 
+# ✂️ Split text into chunks WITH page numbers
+def split_text_with_pages(reader, chunk_size=1200, overlap=200):
+    chunks = []
+
+    for page_num, page in enumerate(reader.pages):
+        text = page.extract_text() or ""
+
+        for i in range(0, len(text), chunk_size - overlap):
+            chunk = text[i:i+chunk_size]
+
+            chunks.append({
+                "text": chunk,
+                "page": page_num + 1
+            })
+
+    return chunks
+
+
 # 📄 Upload document
 @router.post("/upload-doc")
 async def upload_doc(file: UploadFile = File(...)):
-    global document_text
+    global document_chunks
 
     try:
         if file.filename.endswith(".pdf"):
             reader = PdfReader(file.file)
-            text = ""
-            for page in reader.pages:
-                text += page.extract_text() or ""
+            document_chunks = split_text_with_pages(reader)
+
         else:
             content = await file.read()
             text = content.decode("utf-8")
 
-        # Limit size (important)
-        document_text = text[:5000]
+            # fallback (no page numbers)
+            document_chunks = [{
+                "text": text,
+                "page": 1
+            }]
 
-        return {"message": "Document uploaded successfully"}
+        return {
+            "message": f"Processed {len(document_chunks)} chunks from document"
+        }
 
     except Exception as e:
         return {"message": f"Error: {str(e)}"}
 
 
-# 💬 Chat (lightweight RAG)
+# 🔍 Score chunks
+def score_chunk(chunk_text, query):
+    score = 0
+    for word in query.lower().split():
+        score += chunk_text.lower().count(word)
+    return score
+
+
+# 🔍 Retrieve best chunks
+def get_relevant_chunks(query, k=5):
+    scored = []
+
+    for chunk in document_chunks:
+        s = score_chunk(chunk["text"], query)
+        if s > 0:
+            scored.append((s, chunk))
+
+    scored.sort(reverse=True, key=lambda x: x[0])
+
+    return [chunk for _, chunk in scored[:k]]
+
+
+# 💬 Chat with citations
 @router.post("/chat")
 def chat(req: ChatRequest):
-    global document_text
+    global document_chunks
 
     try:
         messages = req.messages
+        question = messages[-1]["content"]
 
-        # Inject document context
-        if document_text:
+        relevant_chunks = get_relevant_chunks(question, k=5)
+
+        # 🧠 Build context
+        context = "\n\n".join([chunk["text"] for chunk in relevant_chunks])
+
+        # 📄 Extract unique page numbers
+        pages = sorted(set(chunk["page"] for chunk in relevant_chunks))
+
+        if context:
             messages = [
                 {
                     "role": "system",
                     "content": f"""
 You are an AI tutor.
 
-Use the document below to answer.
+Use ONLY the context below to answer clearly.
 If not found, say you don’t know.
 
-Document:
-{document_text}
+Context:
+{context}
 """
                 }
             ] + messages[1:]
 
         answer = generate_response(messages)
+
+        # 📌 Add citations
+        if pages:
+            citation_text = ", ".join([f"Page {p}" for p in pages])
+            answer += f"\n\n📌 Source: {citation_text}"
 
         return {"response": answer}
 
