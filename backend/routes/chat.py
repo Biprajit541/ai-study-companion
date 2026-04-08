@@ -1,19 +1,22 @@
 from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
 from services.llm import generate_response
-from services.vector_store import add_documents, search
-from utils.text_splitter import split_text
 from pypdf import PdfReader
 
 router = APIRouter()
+
+# 🧠 Store document in memory
+document_text = ""
 
 class ChatRequest(BaseModel):
     messages: list
 
 
-# 📄 Upload + process document
+# 📄 Upload document
 @router.post("/upload-doc")
 async def upload_doc(file: UploadFile = File(...)):
+    global document_text
+
     try:
         if file.filename.endswith(".pdf"):
             reader = PdfReader(file.file)
@@ -24,41 +27,39 @@ async def upload_doc(file: UploadFile = File(...)):
             content = await file.read()
             text = content.decode("utf-8")
 
-        chunks = split_text(text)
-        add_documents(chunks)
+        # Limit size (important)
+        document_text = text[:5000]
 
-        return {"message": "Document indexed successfully"}
+        return {"message": "Document uploaded successfully"}
 
     except Exception as e:
         return {"message": f"Error: {str(e)}"}
 
 
-# 💬 Chat with RAG
+# 💬 Chat (lightweight RAG)
 @router.post("/chat")
 def chat(req: ChatRequest):
+    global document_text
+
     try:
         messages = req.messages
-        user_question = messages[-1]["content"]
 
-        # 🔍 Retrieve relevant chunks
-        relevant_chunks = search(user_question, k=5)
-
-        context = "\n\n".join(relevant_chunks)
-
-        messages = [
-            {
-                "role": "system",
-                "content": f"""
+        # Inject document context
+        if document_text:
+            messages = [
+                {
+                    "role": "system",
+                    "content": f"""
 You are an AI tutor.
 
-Use the context below to answer clearly.
-If the answer is not found, say you don’t know.
+Use the document below to answer.
+If not found, say you don’t know.
 
-Context:
-{context}
+Document:
+{document_text}
 """
-            }
-        ] + messages[1:]
+                }
+            ] + messages[1:]
 
         answer = generate_response(messages)
 
