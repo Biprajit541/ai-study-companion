@@ -71,15 +71,15 @@ if menu == "💬 Chat Tutor":
         ]
 
     # 📄 Upload document
-    uploaded_file = st.file_uploader("📄 Upload notes (PDF/TXT)", type=["pdf", "txt"])
+   uploaded_file = st.file_uploader("📄 Upload notes", type=["pdf", "txt"])
 
-    if uploaded_file:
-        with st.spinner("Uploading document..."):
-            requests.post(
-                f"{API_URL}/upload-doc",
-                files={"file": uploaded_file}
-            )
-        st.success("Document uploaded! Now ask questions.")
+if uploaded_file:
+    with st.spinner("Processing document..."):
+        requests.post(
+            f"{API_URL}/upload-doc",
+            files={"file": uploaded_file}
+        )
+    st.success("Document ready! Ask questions.")
 
     # ✍️ Input
     user_input = st.text_input("Ask something...")
