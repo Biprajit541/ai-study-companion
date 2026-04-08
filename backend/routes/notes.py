@@ -9,5 +9,9 @@ class NotesRequest(BaseModel):
 
 @router.post("/summarize")
 def summarize_notes(req: NotesRequest):
-    prompt = f"Summarize the following notes:\n{req.content}"
-    return {"summary": generate_response(prompt)}
+   prompt = f"Summarize this:\n{req.content}"
+
+response = generate_response([
+    {"role": "system", "content": "You summarize notes."},
+    {"role": "user", "content": prompt}
+])
