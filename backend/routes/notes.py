@@ -9,9 +9,15 @@ class NotesRequest(BaseModel):
 
 @router.post("/summarize")
 def summarize_notes(req: NotesRequest):
-   prompt = f"Summarize this:\n{req.content}"
+    try:
+        prompt = f"Summarize this:\n{req.content}"
 
-response = generate_response([
-    {"role": "system", "content": "You summarize notes."},
-    {"role": "user", "content": prompt}
-])
+        response = generate_response([
+            {"role": "system", "content": "You summarize notes."},
+            {"role": "user", "content": prompt}
+        ])
+
+        return {"summary": response}
+
+    except Exception as e:
+        return {"error": str(e)}
