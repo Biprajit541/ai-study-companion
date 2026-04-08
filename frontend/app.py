@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import re
 
-API_URL = "https://ai-study-backend-py3f.onrender.com"
+API_URL = "https://ai-study-backend-fp5a.onrender.com"
 
 st.set_page_config(page_title="AI Study Companion", layout="wide")
 
