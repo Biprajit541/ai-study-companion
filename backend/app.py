@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from routes import chat, planner, notes
 
 print("🔥 APP STARTING...")
 
