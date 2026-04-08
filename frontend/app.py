@@ -70,16 +70,17 @@ if menu == "💬 Chat Tutor":
             {"role": "system", "content": "You are an expert AI tutor."}
         ]
 
-    # 📄 Upload document
-   uploaded_file = st.file_uploader("📄 Upload notes", type=["pdf", "txt"])
+    # 📄 Upload document (FIXED)
+    uploaded_file = st.file_uploader("📄 Upload notes", type=["pdf", "txt"])
 
-if uploaded_file:
-    with st.spinner("Processing document..."):
-        requests.post(
-            f"{API_URL}/upload-doc",
-            files={"file": uploaded_file}
-        )
-    st.success("Document ready! Ask questions.")
+    if uploaded_file and "uploaded" not in st.session_state:
+        with st.spinner("Processing document..."):
+            res = requests.post(
+                f"{API_URL}/upload-doc",
+                files={"file": uploaded_file}
+            )
+        st.session_state.uploaded = True
+        st.success("Document ready! Ask questions.")
 
     # ✍️ Input
     user_input = st.text_input("Ask something...")
@@ -100,7 +101,10 @@ if uploaded_file:
                     "messages": trim_messages(st.session_state.messages)
                 })
 
-            response = data.get("response", "Error occurred")
+            if "response" in data:
+                response = data["response"]
+            else:
+                response = "⚠️ Error from backend"
 
             st.session_state.messages.append(
                 {"role": "assistant", "content": response}
@@ -121,13 +125,14 @@ if uploaded_file:
             st.session_state.messages = [
                 {"role": "system", "content": "You are an expert AI tutor."}
             ]
+            st.session_state.pop("uploaded", None)
 
     with col2:
         if st.button("↩️ Undo Last"):
             if len(st.session_state.messages) > 2:
                 st.session_state.messages.pop()
                 st.session_state.messages.pop()
-
+                
 # ---------- PLANNER ----------
 elif menu == "📊 Study Planner":
     st.title("📊 Smart Study Planner")
