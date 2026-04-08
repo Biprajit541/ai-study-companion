@@ -8,31 +8,36 @@ st.set_page_config(page_title="AI Study Companion", layout="wide")
 # ---------- STYLING ----------
 st.markdown("""
 <style>
-.main {
+body {
     background-color: #0e1117;
 }
 .block-container {
     padding-top: 2rem;
 }
-.stTextInput>div>div>input {
+.card {
     background-color: #1e222a;
-    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 15px;
 }
-.stTextArea textarea {
-    background-color: #1e222a;
-    color: white;
-}
-.stButton button {
+.chat-user {
     background-color: #4CAF50;
+    padding: 10px;
+    border-radius: 10px;
     color: white;
-    border-radius: 8px;
-    height: 3em;
-    width: 100%;
+    margin-bottom: 5px;
+}
+.chat-bot {
+    background-color: #2a2f3a;
+    padding: 10px;
+    border-radius: 10px;
+    color: white;
+    margin-bottom: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- API CALL ----------
+# ---------- API ----------
 def call_api(endpoint, payload):
     try:
         res = requests.post(f"{API_URL}{endpoint}", json=payload, timeout=30)
@@ -40,17 +45,20 @@ def call_api(endpoint, payload):
         if res.status_code == 200:
             return res.json()
         else:
-            return {"error": f"HTTP {res.status_code}", "details": res.text}
+            return {"error": res.text}
 
     except Exception as e:
         return {"error": str(e)}
 
 # ---------- SIDEBAR ----------
-st.sidebar.title("📚 AI Study Companion")
+st.sidebar.title("🚀 AI Study Companion")
 menu = st.sidebar.radio(
-    "Navigate",
+    "Navigation",
     ["💬 Chat Tutor", "📊 Study Planner", "📝 Notes Summarizer"]
 )
+
+st.sidebar.markdown("---")
+st.sidebar.info("Built using FastAPI + Groq + Streamlit")
 
 # ---------- CHAT ----------
 if menu == "💬 Chat Tutor":
@@ -59,48 +67,55 @@ if menu == "💬 Chat Tutor":
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    user_input = st.text_input("Ask anything...")
+    user_input = st.text_input("Ask a question")
 
-    if st.button("Send") and user_input:
-        with st.spinner("Thinking..."):
-            data = call_api("/chat", {"question": user_input})
+    if st.button("Send"):
+        if user_input:
+            with st.spinner("Thinking..."):
+                data = call_api("/chat", {"question": user_input})
 
-        response = data.get("response", "Error occurred")
+            response = data.get("response", "Error occurred")
 
-        st.session_state.chat_history.append((user_input, response))
+            st.session_state.chat_history.append((user_input, response))
 
+    # Display chat
     for user, bot in reversed(st.session_state.chat_history):
-        st.markdown(f"**🧑 You:** {user}")
-        st.markdown(f"**🤖 AI:** {bot}")
-        st.markdown("---")
+        st.markdown(f"<div class='chat-user'>🧑 {user}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-bot'>🤖 {bot}</div>", unsafe_allow_html=True)
 
 # ---------- PLANNER ----------
 elif menu == "📊 Study Planner":
     st.title("📊 Smart Study Planner")
+
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
     with col1:
         subject = st.text_input("Subject")
     with col2:
-        days = st.number_input("Days", min_value=1, max_value=30, value=7)
+        days = st.slider("Days", 1, 30, 7)
 
     if st.button("Generate Plan"):
         if subject:
-            with st.spinner("Creating your plan..."):
+            with st.spinner("Generating plan..."):
                 data = call_api("/plan", {"subject": subject, "days": days})
 
             if "plan" in data:
-                st.success("Your Study Plan:")
-                st.write(data["plan"])
+                st.markdown("### 📅 Your Plan")
+                st.markdown(f"<div class='card'>{data['plan']}</div>", unsafe_allow_html=True)
             else:
                 st.error(data)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- SUMMARIZER ----------
 elif menu == "📝 Notes Summarizer":
     st.title("📝 Notes Summarizer")
 
-    content = st.text_area("Paste your notes here...", height=200)
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+    content = st.text_area("Paste your notes", height=200)
 
     if st.button("Summarize"):
         if content:
@@ -108,7 +123,9 @@ elif menu == "📝 Notes Summarizer":
                 data = call_api("/summarize", {"content": content})
 
             if "summary" in data:
-                st.success("Summary:")
-                st.write(data["summary"])
+                st.markdown("### 📌 Summary")
+                st.markdown(f"<div class='card'>{data['summary']}</div>", unsafe_allow_html=True)
             else:
                 st.error(data)
+
+    st.markdown("</div>", unsafe_allow_html=True)
